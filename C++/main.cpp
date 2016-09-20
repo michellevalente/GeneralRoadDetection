@@ -2,8 +2,8 @@
 #include "roadDetector.h"
 #include "roadDetectorPeyman.h"
 
-int captureFrame(string src, string dst, int sample_interval = 10, 
-	int width = 480, int height = 360, int fps = 30)
+int captureFrame(string src, string dst, int sample_interval = 100, 
+	int width = 480, int height = 360, int fps = 10)
 {
 	
 	VideoCapture cap(src);
@@ -25,8 +25,9 @@ int captureFrame(string src, string dst, int sample_interval = 10,
 		Mat frame;
 		for (int i = 0; i < sample_interval; i++)
 			cap.grab();
-		cap.retrieve(frame);			
-		sprintf(filename, "%simg%d.jpg", dst.c_str(), ++cnt);
+		cap.retrieve(frame);		
+
+		sprintf(filename, "%s%010d.png", dst.c_str(), ++cnt);
 		imwrite(string(filename), frame);		
 	}
 
@@ -36,7 +37,7 @@ int captureFrame(string src, string dst, int sample_interval = 10,
 
 
 void genVideo(string src, int numFrames, string output_name = "output.avi", 
-	double fps = 10.0, int wFrame = 960, int hFrame = 290)
+	double fps = 10.0, int wFrame = 640, int hFrame = 480, char * showOrientation = "0", char * showRoad = "0")
 {
 	//VideoWriter vw(output_name, CV_FOURCC('M','J','P','G'), fps, Size(wFrame, hFrame));
 	// if (!vw.isOpened())
@@ -47,7 +48,7 @@ void genVideo(string src, int numFrames, string output_name = "output.avi",
 	RoadDetectorPeyman roadDetector;
 	Point vp = Point(0 , 0);
 
-	for (int i = 0; i < numFrames; i++)
+	for (int i = 1; i < numFrames; i++)
 	{		
 		char filename[512];
 
@@ -56,91 +57,51 @@ void genVideo(string src, int numFrames, string output_name = "output.avi",
 
 		roadDetector.applyFilter(filename, wFrame , hFrame);
 		roadDetector.calcOrientationConfiance();
-		roadDetector.drawOrientation();
+		if(!strcmp(showOrientation, "1"))
+			roadDetector.drawOrientation();
+
 		vp = roadDetector.findVanishingPoint(vp);
-		roadDetector.findRoad();
+
+		if(!strcmp(showRoad,"1"))
+			roadDetector.findRoad();
 		
 		imshow("", roadDetector.image);
-		waitKey(10);
+		waitKey(15);
 		//vw.write(roadDetector.image);
 	}
 }
-
-// void testImgs(string img_dir, string res_dir)
-// {
-// 	Detector road_detector;
-// 	vector<string> filelist;
-// 	getFileList(img_dir, filelist);
-// 	string img_dir_ = addSplash(img_dir);
-// 	string res_dir_ = addSplash(res_dir);
-// 	for (int i = 0; i < filelist.size(); i++)
-// 	{
-// 		cout << endl << filelist[i] << endl;
-
-// 		Point van_point;
-// 		vector<float> line_angles;
-// 		road_detector.vanishPointDet("dust.jpg", van_point);
-// 		// road_detector.edgeDet(van_point, line_angles);
-// 		// road_detector.drawLines(van_point, line_angles);
-// 		// oritation(road_detector.color_img, van_point);
-
-// 		roadDetector.applyFilter();
-// 		roadDetector.calcOrientationConfiance2();
-// 		roadDetector.drawOrientation();
-// 		Point vanishing_point = roadDetector.findVanishingPoint2();
-
-// 		imshow("", road_detector.color_img);
-// 		waitKey(10);
-// 		imwrite("snow_res.jpg", road_detector.color_img);
-// 		waitKey(0);
-// 	}
-// }
-
-void testImage(string img_dir,int wFrame = 480, int hFrame = 360)
+void testImage(string img_dir,int wFrame = 480, int hFrame = 360, char * showOrientation = "0", char * showRoad = "0")
 {
 	RoadDetectorPeyman roadDetector;
 	Point vp = Point(0,0);
 	roadDetector.applyFilter(img_dir,wFrame, hFrame);
 	roadDetector.calcOrientationConfiance();
-	roadDetector.drawOrientation();
-	roadDetector.findVanishingPoint(vp);
-	//roadDetector.findRoad();
+	if(!strcmp(showOrientation, "1"))
+			roadDetector.drawOrientation();
+
+	vp = roadDetector.findVanishingPoint(vp);
+
+	if(!strcmp(showRoad,"1"))
+		roadDetector.findRoad();
 
 	imshow("Final image", roadDetector.image);
 	waitKey(0);
 }
 
 
-int main()
+int main(int argc,char *argv[])
 {
-	//captureFrame("../data/test/");
-	//testImage("../images/image_02/data/0000000000.png");
-	//testImage("../images/dust3.jpg");
-	genVideo("../images/image_02/data/", 188, "test_results/test.avi");
-	//captureFrame("../images/rimg.mov", "../images/frames/");
+	if(argc != 4){
+		cout << "Missing arguments!" << endl;
+		return 1;
+	}
+
+	if(!strcmp(argv[1],"road"))
+		genVideo("../images/road/data/", 20, "test_results/test.avi", 10, 960, 290, argv[2], argv[3]);
+	else if(!strcmp(argv[1],"dirt"))
+		genVideo("../images/frames_dirt/", 110, "test_results/test.avi", 10, 360, 240, argv[2], argv[3]);
+	else if(!strcmp(argv[1], "snow"))
+		testImage("../images/snow.jpg", 480,360, argv[2], argv[3]);
+	//captureFrame("../images/dirt2.mp4", "../images/frames_dirt/");
 	return 0;
 }
-
-// int main(int argc,char *argv[])
-// {
-// 	if(argc < 2)
-// 	{
-// 		cout << "Enter file name" << endl;
-// 		return 0;
-// 	}
-
-// 	string fileName(argv[1]);
-
-
-// 	RoadDetectorPeyman roadDetector("../images/" + fileName);
-// 	roadDetector.applyFilter();
-// 	roadDetector.calcOrientationConfiance();
-// 	roadDetector.drawOrientation();
-// 	roadDetector.findVanishingPoint();
-// 	//roadDetector.findRoad();
-
-// 	imshow("Final image", roadDetector.image);
-//     waitKey(0);
-
-// 	return 0;
-// }

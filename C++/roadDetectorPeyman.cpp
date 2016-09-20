@@ -210,7 +210,7 @@ void RoadDetectorPeyman::voter(const Point p, Mat& votes, Mat& dist_table, Point
     float distance;
     float distanceFunction; 
     double maxDistance = distanceP(p, plane);
-    double variance = 0.25;
+    double variance = 0.28;
 
     float x = p.x + xStep;
     float y = p.y - yStep;
@@ -236,11 +236,11 @@ void RoadDetectorPeyman::voter(const Point p, Mat& votes, Mat& dist_table, Point
         //circle(image, Point(x,y), 1, Scalar(255, 255, 255), -1);
         // cout << "Distance: " << distance << endl;
         // cout << "Max distance: " << maxDistance << endl;
-        //distance = distanceP(p, Point(y,x)) / maxDistance;
-        //distanceFunction = exp(-(distance * distance) / (2.0 * variance ) );
+        distance = distanceP(p, Point(y,x)) / maxDistance;
+        distanceFunction = exp(-(distance * distance) / (2.0 * variance ) );
         //cout << "Func: " << distanceFunction << endl;
-        //votes.at<float>(y,x) += (sinTheta) * distanceFunction;
-        votes.at<float>(y,x) += (sinTheta);
+        votes.at<float>(y,x) += (sinTheta) * distanceFunction;
+        //votes.at<float>(y,x) += (sinTheta);
         //cout << "Vote: " << votes.at<float>(y,x) << endl;
     	x += xStep;
     	y -= yStep;
@@ -347,43 +347,44 @@ float RoadDetectorPeyman::voteRoad(float angle, float thr)
     return float(total / totalPoints);
 }
 
-
 void RoadDetectorPeyman::findRoad()
 {
     float angle;
     int diag = h + w;
     vector<float> voteEdges(50,0);
     int i = 0;
-    for(int angleLeft = 180 ; angleLeft < 275; angleLeft += 5)
+    for(int angleLeft = 200 ; angleLeft < 275; angleLeft += 5)
     {
         voteEdges[i] = voteRoad(angleLeft, 0.15);
         i++;
     }
-    for(int angleRight = -90; angleRight <0; angleRight +=5)
+    for(int angleRight = -90; angleRight < -10; angleRight +=5)
     {
         voteEdges[i] = voteRoad(angleRight, 0.15);
         i++;
     }
     int maxIndex = max_element(voteEdges.begin(), voteEdges.end()) - voteEdges.begin();
-    float bestAngle = (180 + (5 * maxIndex)) * CV_PI / 180.0;
-    float bestAngleDeg = (180 + (5 * maxIndex));
+    float bestAngle = (200 + (5 * maxIndex)) * CV_PI / 180.0;
+    float bestAngleDeg = (200 + (5 * maxIndex));
+
+    int quadBest = whichQuadrant(bestAngle);
 
     float secondBestAngle = bestAngle;
-    if(maxIndex > 18)
-    {   
-        i = 0;
-        float maximum = 0;
-        for(int angle = 180 ; angle < 360; angle += 5)
-        {
-            if(abs(bestAngleDeg - angle) > 20 &&  abs(bestAngleDeg - angle) < 120 && voteEdges[i] > maximum)
-            {
-                maximum = voteEdges[i];
-                secondBestAngle = angle * CV_PI / 180.0;
-            }
 
-            i++;
+    i = 0;
+    float maximum = 0;
+    for(int angle = 200 ; angle < 350; angle += 5)
+    {
+        int quadNew = whichQuadrant(angle * CV_PI / 180.0);
+        if(abs(bestAngleDeg - angle) > 20 &&  abs(bestAngleDeg - angle) < 100 && voteEdges[i] > maximum && quadBest != quadNew)
+        {
+            maximum = voteEdges[i];
+            secondBestAngle = angle * CV_PI / 180.0;
         }
+
+        i++;
     }
+
     int x1 = vp.x + int( diag * cos(bestAngle));
     int y1 = vp.y - int( diag * sin(bestAngle));
     line(image, Point(x1, y1), vp, Scalar(255,100,40), 2);
@@ -391,5 +392,20 @@ void RoadDetectorPeyman::findRoad()
     int x2 = vp.x + int( diag * cos(secondBestAngle));
     int y2 = vp.y - int( diag * sin(secondBestAngle));
     line(image, Point(x2, y2), vp, Scalar(255,100,40), 2);
+    int npt[] = { 3 };
+
+    Point points[1][3];
+    points[0][0] = vp;
+    points[0][1] = Point(x1, y1);
+    points[0][2] = Point(x2,y2);
+
+    const Point* ppt[1] = { points[0] };
+
+    float alpha = 0.3;
+
+    Mat overlay;
+    image.copyTo(overlay);
+    fillPoly(overlay, ppt, npt, 1, Scalar( 255, 255, 0, 100 ), 8);
+    addWeighted(overlay, alpha, image, 1 - alpha, 0, image);
 }
 
