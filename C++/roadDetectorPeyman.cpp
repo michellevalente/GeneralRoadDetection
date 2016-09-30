@@ -3,6 +3,7 @@
 /* Constructor */ 
 RoadDetectorPeyman::RoadDetectorPeyman()
 {
+    perc_look_old = 0.07;
     numOrientations = 4;
     orientations.resize(numOrientations);
     orientations[0] = 0.0;
@@ -289,12 +290,15 @@ void RoadDetectorPeyman::voter(const Point p, Mat& votes, Mat& dist_table, Point
            only looks around the old one */
         if(old_vp.x != 0 && old_vp.y != 0)
         {
-            if(y > old_vp.y - 5 && y < old_vp.y + 5 && x > old_vp.x - 5 && x < old_vp.x + 5){
+
+            if(y > old_vp.y - int(perc_look_old *h) && y < old_vp.y + int(perc_look_old *h) && x > old_vp.x - int(perc_look_old *w) && x < old_vp.x + int(perc_look_old *w)){
                 votes.at<float>(y,x) += (sinTheta);
                 distance = distanceP(p, Point(y,x)) / maxDistance;
                 distanceFunction = exp(-(distance * distance) / (2.0 * variance ) );
                 votes.at<float>(y,x) += distanceFunction * sinTheta ;
             }
+            else
+                votes.at<float>(y,x) = 0.0;
         }
         /* First time calculating the vanishing point */
         else
@@ -321,6 +325,12 @@ Point RoadDetectorPeyman::findVanishingPoint(Point old_vp)
     double duration;
     start = std::clock();
 
+    if(old_vp.x != 0 && old_vp.y != 0)
+    {
+        //rectangle(image, Point(old_vp.x - (perc_look_old * w), 
+        //    old_vp.y - (perc_look_old *h)), Point(old_vp.x + (perc_look_old *w), old_vp.y + (perc_look_old * h)), Scalar(255, 0, 255));
+    }
+
     for (int i = margin_h ; i < h - margin_h ; i++)
     {
         for (int j = margin_w  ; j < w - margin_w ; j++)
@@ -336,14 +346,19 @@ Point RoadDetectorPeyman::findVanishingPoint(Point old_vp)
     double min_val, max_val;
     Point min_p, max_p;
     minMaxLoc(votes, &min_val, &max_val, &min_p, &max_p);
-    //cout << "max value voter: "<< max_val << endl;
+
+//     Scalar mean, stddev;
+//     meanStdDev ( votes, mean, stddev );
+//     std::cout << "mean" <<mean << std::endl;
+//     std::cout << "stdev" <<stddev << std::endl;
+//     //cout << "max value voter: "<< max_val << endl;
 
 // for (int i = margin_h ; i < h - margin_h ; i++)
 //     {
 //         for (int j = margin_w  ; j < w - margin_w ; j++)
 //         {
 //             //cout << votes.at<float>(i,j) << endl;
-//              if( votes.at<float>(i,j) > 100 )
+//              if( votes.at<float>(i,j) > mean[0] )
 //                  circle(image, Point(j,i), 6, Scalar(255, 0, 255), -1);
 //         }
 
@@ -555,8 +570,6 @@ void RoadDetectorPeyman::findRoad2()
         vector<float> voteNewEdges(50,0);
         float bestAngleEdge = computeOCR(voteNewEdges, Point(x,y),bestAngleDeg, sumOCR[i]);
         float edgeDeg = bestAngleEdge * CV_PI / 180.0;
-        if(abs(bestAngleDeg - edgeDeg) < 90 ||  abs(bestAngleDeg - edgeDeg) > 100)
-            sumOCR[i] = 0.0;
         x += xStep;
         y -= yStep;
         points[i] = Point(x,y);
@@ -572,8 +585,6 @@ void RoadDetectorPeyman::findRoad2()
         vector<float> voteNewEdges(50,0);
         float bestAngleEdge = computeOCR(voteNewEdges, Point(x,y),bestAngleDeg, sumOCR[i]);
         float edgeDeg = bestAngleEdge * CV_PI / 180.0;
-        if(abs(bestAngleDeg - edgeDeg) < 90 ||  abs(bestAngleDeg - edgeDeg) > 100)
-            sumOCR[i] = 0.0;
         x -= xStep;
         y += yStep;
         points[i] = Point(x,y);
@@ -668,7 +679,7 @@ void RoadDetectorPeyman::detectSky()
         mean_value_bottom = float(sum_value_bottom / count_bottom);
 
         float sum_variance_hue_top = 0 , sum_variance_value_top = 0, sum_variance_hue_bottom = 0, sum_variance_value_bottom =0;
-        
+
         // Calculate variance
         for (int y = 0 ; y < h; y++)
         {
@@ -711,5 +722,97 @@ void RoadDetectorPeyman::detectSky()
     int maxIndex = max_element(distance_func.begin(), distance_func.end()) - distance_func.begin();
     cout << "Max index sky: " << maxIndex << endl;
     line(image, Point(0,int(maxIndex * variance_height)), Point(w, int(maxIndex * variance_height)), Scalar(255,100,40), 3);
+
+}
+bool RoadDetectorPeyman::pointIn(Point p) {
+    return (0<p.x && p.x<w && 0<p.y && p.y< (h - 0.2*h));
+}
+
+static const Point shift[4]={Point(-1,0),Point(1,0),Point(0,-1),Point(0,1)};
+
+float RoadDetectorPeyman::diffPixels(Point p, Point q, Mat img)
+{
+    Vec3b p1 = img.at<Vec3b>(p);
+    Vec3b p2 = img.at<Vec3b>(q);
+
+    return cv::norm(p1, p2, CV_L2);
+} 
+
+void RoadDetectorPeyman::regionGrow(Point seed, double T, Mat img, Mat region)
+{
+    if (!pointIn(seed)) return;
+    int counter = 0;                  
+    queue<Point> active;        
+    active.push(seed);    // add the seed
+
+    while (!active.empty()) {
+        Point p = active.front();
+        active.pop();
+        image.at<Vec3b>(p) = Vec3b(255,255,0);     // set region
+        region.at<int>(p) = 1;
+        counter++;
+
+        for(int i = 0; i < 4; i++)
+        {
+            Point q = p + shift[i];
+            //cout << "Norm: " << diffPixels(p, q, img) << endl;
+            if(pointIn(q) && diffPixels(p, q, img) < T && region.at<float>(q) == 0 && q.y > vp.y)
+            {
+                active.push(q);
+                region.at<int>(q) = 2;
+                image.at<Vec3b>(p) = Vec3b(255,255,0); 
+            }
+        }
+        // for (int i = 0; i < 4; i++) {
+        //     Point q = p + shift[i];     // get all 4 neighboring pixels
+        //     if (pointIn(q) && region.at<float>(q) == 0 && abs(dI(image[p], image[q])) < T)        // compute intensity differences using function dI
+        //     { //region == 0 to ensure we don't recheck points we've already done
+        //         active.enqueue(q); 
+        //         region.at<float>(q) = 2;    // mark points to active front
+        //     }
+        // }                     
+    }
+
+
+    //cout << "grown region of volume " << counter << " pixels    (threshold  " << T << ")" << endl;
+}
+
+void RoadDetectorPeyman::roadDetection(float T)
+{
+    Point bottom(w/2, h);
+    Point seed1 = (vp + bottom) * 0.5;
+    Point seed2 = (vp + seed1) * 0.5;
+    Point seed3 = (seed1 + bottom) * 0.5;
+    if(seed3.y > h - 0.2 * h)
+        seed3.y = h - 0.2 * h;
+    Mat imageDetection = image.clone();
+    Mat temp = image.clone();
+
+    Mat hsvImg;
+    cvtColor(image, hsvImg, CV_BGR2HSV);
+    Mat channel[3];
+    split(hsvImg, channel);
+    channel[2] = Mat(hsvImg.rows, hsvImg.cols, CV_8UC1, 200);//Set V
+    //Merge channels
+    merge(channel, 3, hsvImg);
+    Mat rgbImg;
+    cvtColor(hsvImg, rgbImg, CV_HSV2BGR);
+    //imshow("1. \"Remove Shadows\"", rgbImg);
+
+
+    //GaussianBlur( imageGray, imageGray, Size( 3, 3 ), 0, 0 );
+    GaussianBlur( image, imageDetection, Size( 15, 15 ), 0, 0 );
+
+    //waitKey(0);
+
+    //imageDetection = hsvImg;
+   
+    //medianBlur( imageGray, imageGray, 5 );
+    //medianBlur( image, image, 5 );
+    Mat region = Mat::zeros(h, w, CV_32F);
+    for(int i = vp.y; i < (h - h * 0.2); i ++)
+        regionGrow(Point(seed1.x, i), T, imageDetection, region);
+    // regionGrow(seed2, T, imageDetection);
+    // regionGrow(seed3, T, imageDetection);
 
 }

@@ -4,6 +4,7 @@
 #include <string>
 #include <numeric>
 #include <algorithm>
+#include <queue> 
 #include "gaborKernel.h"
 
 class RoadDetectorPeyman
@@ -46,6 +47,8 @@ public:
 	/* Algorithm to detect the sky in the images */
 	void detectSky();
 
+	void roadDetection(float T);
+
 private:
 	/* Algorithm to vote for the vanishing point from on point to all the others in the ray. */
 	void voter(const Point p, Mat& votes, Mat& dist_table, Point old_vp);
@@ -54,7 +57,13 @@ private:
 	float voteRoad(float angle, float thr, Point p);
 	float computeOCR(vector<float>& voteEdges, Point point,int initialAngle , int& sumOCR);
 
-	
+	void regionGrow(Point seed, double T, Mat img, Mat region);
+
+	bool pointIn(Point p);
+
+	float diffPixels(Point p, Point q, Mat img);
+
+
 	std::string filename;
 	int numOrientations;
 	int numScales;
@@ -63,6 +72,7 @@ private:
 	int margin_h;
 	int margin_w;
 	Point vp;
+	float perc_look_old;
 
 	vector< vector<GaborKernel> > kernels;
 	vector<float> orientations;
