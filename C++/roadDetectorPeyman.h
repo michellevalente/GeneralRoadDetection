@@ -15,6 +15,9 @@ public:
 
 	Mat image;
 	Mat imageGray;
+	Mat imageHSV;
+	Mat channelHSV[3];
+	Mat outimage;
 
 	/* Convolves input frame with the Gabor filters at each pixel
 	   and calculates the Gabor Energy responses */
@@ -34,20 +37,13 @@ public:
 
 	/* Road detection algorithm. Finds the most dominant edge and the second most 
 	   dominant edge with a minimum angle between the second and the first one */ 
-	void findRoad();
-
-	/* Road detection algorithm. Finds the most dominant edge, constructs a set of line segments
-	   for each samples pixel in the edge, compute the OCR for each line and select the one with the highest
-	   OCR. Recalculates the vanishing point location from the new line. */
-	void findRoad2();
+	Point findRoad();
 
 	/* Draws an arrow from the middle of the image to the vanishing point */
 	void direction(Point van_point);
 
-	/* Algorithm to detect the sky in the images */
-	void detectSky();
-
 	void roadDetection(float T);
+	void drawConfidence();
 
 private:
 	/* Algorithm to vote for the vanishing point from on point to all the others in the ray. */
@@ -55,14 +51,27 @@ private:
 
 	/* OCR calculation to vote for the most dominant edge */ 
 	float voteRoad(float angle, float thr, Point p);
-	float computeOCR(vector<float>& voteEdges, Point point,int initialAngle , int& sumOCR);
+	float computeOCR(vector<float>& voteEdges, Point point,int initialAngle , float& sumOCR, float& median);
 
-	void regionGrow(Point seed, double T, Mat img, Mat region);
-
+	void regionGrow(Point seed,int t0, int t1, int t2, Mat img, Mat region, int useOrientation);
+	
 	bool pointIn(Point p);
 
-	float diffPixels(Point p, Point q, Mat img);
+	float diffPixels(Point p, Point q, Mat img, int t0, int t1, int t2);
 
+	float directionVp(Point p);
+
+	void findLimits();
+
+	void findThr(Mat img, int& t0, int& t1, int& t2);
+
+	void equalizeRegion(Point p1, Point p2);
+
+	void drawEdge(float angle);
+
+	bool isShadow(Point p, Mat img);
+
+	void testShadow(Mat img);
 
 	std::string filename;
 	int numOrientations;
@@ -73,6 +82,12 @@ private:
 	int margin_w;
 	Point vp;
 	float perc_look_old;
+
+	float angle_left;
+	float angle_right;
+	Point triang1,triang2;
+
+	float medium_bright; 
 
 	vector< vector<GaborKernel> > kernels;
 	vector<float> orientations;
