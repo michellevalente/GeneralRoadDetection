@@ -749,55 +749,31 @@ void RoadDetectorPeyman::regionGrow(Point seed, int t0, int t1, int t2, Mat img,
 
 		Point p = active.front();
 		active.pop();
-		//outimage.at<Vec3b>(p) = Vec3b(255,255,0);     // set region
 		region.at<int>(p) = 1;
 
-		int pointVp = 0;
-
-		int count = 0;
-		float sum_direction = 0.0;
+		bool one_in = 0;
 		for(int i =0; i < 8; i++)
 		{
 			for(int j = 1; j < 3; j++)
 			{
-				Point q = p + (shift[i] * j); 
-				if(pointIn(q))
+				Point q = p + (shift[i] * j);
+				if(!pointIn(q) || region.at<float>(q) != 0)
+					continue;
+
+				if(isShadow(q, img))
 				{
-					sum_direction += directionVp(q);
-					count++;
+					region.at<float>(q) = 1;
+					continue;
+				}
+
+				if(pointIn(q) && diffPixels(p, q, img, t0, t1, t2) && region.at<float>(q) == 0 )
+				{
+					one_in = 1;
+					break;
 				}
 			}
+ 
 		}
-		float median_direction = sum_direction / count;
-
-		bool one_in = 0;
-		if(useOrientation == 1 || median_direction < thr){
-			for(int i =0; i < 8; i++)
-			{
-				for(int j = 1; j < 3; j++)
-				{
-					Point q = p + (shift[i] * j);
-					if(!pointIn(q) || region.at<float>(q) != 0)
-						continue;
-
-					if(isShadow(q, img))
-					{
-						region.at<float>(q) = 1;
-						continue;
-					}
-					//float dif_pixels = diffPixels(p, q, img);
-
-					//if(pointIn(q) && dif_pixels < T && region.at<float>(q) == 0 &&  pointVp > 0)
-					if(pointIn(q) && diffPixels(p, q, img, t0, t1, t2) && region.at<float>(q) == 0 )
-					{
-						one_in = 1;
-						break;
-					}
-				}
-			}   
-		}
-
-		
 
 		if(one_in){
 			for(int i = 0; i < 8; i++)
@@ -842,14 +818,6 @@ float RoadDetectorPeyman::directionVp(Point p)
 		if(int(y) == vp.y)
 		{
 			float distance = abs(vp.x - x);
-
-			// float distance2;
-			// if(yStep < 0)
-			//     return distance;
-			// else
-			//     return abs(( p.y - vp.y ) / tan(angle));
-			//cout << "Distance1 : " << distance << endl;
-			//cout << "Distance2 : " << distance2 << endl;
 			return distance;
 		}
 	  
@@ -865,8 +833,6 @@ float RoadDetectorPeyman::directionVp(Point p)
 	
 
 	return w;
-
-   // return abs(( p.y - vp.y ) / tan(angle));
 
 }
 
@@ -915,10 +881,6 @@ void RoadDetectorPeyman::findThr(Mat img, int& t0, int& t1, int& t2)
 		for(int j = 0; j < 8; j++)
 		{
 			Point q = p + shift[j];   
-			//float dif_pixels = diffPixels(p, q, img);
-
-			// if(count > 5 && dif_pixels > (sum_dif/count )* 2)
-			// 	continue;
 			Vec3b p1 = img.at<Vec3b>(p);
 			Vec3b p2 = img.at<Vec3b>(q);
 			sum_bright += int(p1(0));
@@ -947,145 +909,6 @@ void RoadDetectorPeyman::findThr(Mat img, int& t0, int& t1, int& t2)
 		t0 = 10.0;
 
 }
-
-// void cumhist(int histogram[], int cumhistogram[])
-// {
-// 	cumhistogram[0] = histogram[0];
-// 	for(int i = 1; i < 256; i++)
-// 	{
-// 		cumhistogram[i] = histogram[i] + cumhistogram[i-1];
-// 	}
-// }
-
-// void imhist(Mat image, int histogram[], Point p1, Point p2)
-// {
-
-// 	// initialize all intensity values to 0
-// 	for(int i = 0; i < 256; i++)
-// 	{
-// 		histogram[i] = 0;
-// 	}
-
-// 	// calculate the no of pixels for each intensity values
-// 	for(int y = p2.y ; y < p1.y ; y++){
-// 		for(int x = p1.x ; x < p2.x; x++)
-// 		{
-// 			histogram[(int)image.at<uchar>(y,x)]++;
-// 		}
-// 	}
-
-// }
-
-// void histDisplay(int histogram[], const char* name)
-// {
-//     int hist[256];
-//     for(int i = 0; i < 256; i++)
-//     {
-//         hist[i]=histogram[i];
-//     }
-//     // draw the histograms
-//     int hist_w = 512; int hist_h = 400;
-//     int bin_w = cvRound((double) hist_w/256);
-//  
-//     Mat histImage(hist_h, hist_w, CV_8UC1, Scalar(255, 255, 255));
-//  
-//     // find the maximum intensity element from histogram
-//     int max = hist[0];
-//     for(int i = 1; i < 256; i++){
-//         if(max < hist[i]){
-//             max = hist[i];
-//         }
-//     }
-//  
-//     // normalize the histogram between 0 and histImage.rows
-//  
-//     for(int i = 0; i < 256; i++){
-//         hist[i] = ((double)hist[i]/max)*histImage.rows;
-//     }
-//  
-//  
-//     // draw the intensity line for histogram
-//     for(int i = 0; i < 256; i++)
-//     {
-//         line(histImage, Point(bin_w*(i), hist_h),
-//                               Point(bin_w*(i), hist_h - hist[i]),
-//              Scalar(0,0,0), 1, 8, 0);
-//     }
-//  
-//     // display histogram
-//     namedWindow(name, CV_WINDOW_AUTOSIZE);
-//     imshow(name, histImage);
-// }
-
-// void RoadDetectorPeyman::equalizeRegion(Point p1, Point p2)
-// {
-
-// 	// Generate the histogram
-// 	int histogram[256];
-// 	imhist(imageGray, histogram, p1, p2);
-
-// 	// Calculate the size of image
-// 	int size = image.rows * image.cols;
-// 	float alpha = 255.0/size;
-
-// 	// Calculate the probability of each intensity
-// 	float PrRk[256];
-// 	for(int i = 0; i < 256; i++)
-// 	{
-// 		PrRk[i] = (double)histogram[i] / size;
-// 	}
-
-// 	// Generate cumulative frequency histogram
-// 	int cumhistogram[256];
-// 	cumhist(histogram,cumhistogram );
-
-// 	// Scale the histogram
-// 	int Sk[256];
-// 	for(int i = 0; i < 256; i++)
-// 	{
-// 		Sk[i] = cvRound((double)cumhistogram[i] * alpha);
-// 	}	
-
-// 	// Generate the equlized histogram
-//  	float PsSk[256];
-// 	for(int i = 0; i < 256; i++)
-//  	    PsSk[i] = 0;
-
-//     for(int i = 0; i < 256; i++)
-//         PsSk[Sk[i]] += PrRk[i];
-
-// 	int final[256];
-// 	for(int i = 0; i < 256; i++)
-// 		final[i] = cvRound(PsSk[i]*255);
-
-// 	// Generate the equlized image
-// 	Mat new_image = imageGray.clone();
-
-// 	for(int y = p2.y ; y < p1.y ; y++)
-// 		for(int x = p1.x ; x < p2.x; x++)
-// 		{
-// 			new_image.at<uchar>(y,x) = saturate_cast<uchar>(Sk[imageGray.at<uchar>(y,x)]);
-// 		}
-	
-// 	rectangle(imageGray, p1, p2, Scalar(0, 0, 0));
-	
-// 	//outimage = imageGray;
-// 	namedWindow("Original Image");
-// 	imshow("Original Image", imageGray);
-
-// 	// Display the original Histogram
-// 	histDisplay(histogram, "Original Histogram");
-
-// // Display equilized image
-// 	namedWindow("Equilized Image");
-// 	imshow("Equilized Image",new_image);
-// 	waitKey(0);
-// 	imageGray = new_image;
-	
-// 	histDisplay(final, "Equilized Histogram");
-
-// }
-
 
 void RoadDetectorPeyman::roadDetection(float T)
 {
