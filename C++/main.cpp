@@ -70,6 +70,9 @@ void genVideo(string src, int numFrames, string output_name,
              aux.append(imgName);
              cout << aux << endl;
 
+            clock_t start;
+			start = std::clock();
+
 			roadDetector.applyFilter(aux, wFrame , hFrame);
 			roadDetector.calcOrientationConfiance();
 			if(!strcmp(showOrientation, "1"))
@@ -93,8 +96,12 @@ void genVideo(string src, int numFrames, string output_name,
 			if(strcmp(regionGrowing, "0"))
 				roadDetector.roadDetection(atoi(regionGrowing));
 			
+			double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+			cout << "--- Total time: " << duration << endl;
+
 			imshow("", roadDetector.outimage);
-			waitKey(100);
+			imwrite( "../Results_Images/result.jpg", roadDetector.outimage );
+			waitKey(0);
 
 			vw.write(roadDetector.outimage);
 			count_frames++;
@@ -127,6 +134,7 @@ void testImage(string img_dir,int wFrame, int hFrame , char * showOrientation , 
 		roadDetector.roadDetection(atoi(regionGrowing));
 
 	imshow("Final image", roadDetector.outimage);
+	imwrite( "../Results_Images/result.jpg", roadDetector.outimage );
 	waitKey(0);
 }
 
@@ -155,6 +163,10 @@ void testVideo(string src, double fps , int wFrame , int hFrame, char * showOrie
         cap >> frame; // get a new frame from camera
         if(!frame.empty())
         {
+
+            clock_t start;
+			start = std::clock();
+
 			roadDetector.applyFilter(frame,wFrame, hFrame);
 			roadDetector.calcOrientationConfiance();
 			if(!strcmp(showOrientation, "1"))
@@ -167,8 +179,12 @@ void testVideo(string src, double fps , int wFrame , int hFrame, char * showOrie
 
 			if(strcmp(regionGrowing, "0"))
 				roadDetector.roadDetection(atoi(regionGrowing));
+
+			double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+			cout << "--- Total time: " << duration << endl;
 			imshow("", roadDetector.outimage);
-			waitKey(10);
+			imwrite( "../Results_Images/result.jpg", roadDetector.outimage );
+			waitKey(0);
 
 			vw.write(roadDetector.outimage);
 			count_frames++;
@@ -204,7 +220,7 @@ int main(int argc,char *argv[])
 	else if(!strcmp(argv[1],"amelie"))
 		genVideo("../images/cam/", 800, "test_results/amelie.avi", 10, 320, 240, argv[2], argv[3], argv[4]);
 	else if(!strcmp(argv[1],"cordova"))
-		genVideo("../images/caltech-lanes/cordova1/", 100, "test_results/cordova1.avi", 10, 640, 480, argv[2], argv[3], argv[4]);
+		genVideo("../images/caltech-lanes/cordova1/", 100, "test_results/cordova1.avi", 10, 240,180, argv[2], argv[3], argv[4]);
 	else if(!strcmp(argv[1],"cordova2"))
 		genVideo("../images/caltech-lanes/cordova2/", 405, "test_results/cordova2.avi", 10, 640, 480, argv[2], argv[3], argv[4]);
 	else if(!strcmp(argv[1],"washington"))
@@ -233,7 +249,7 @@ int main(int argc,char *argv[])
 		string nameImage;
 		cout << "Enter the name of the image: ";
 		cin >> nameImage;
-		testImage("../images/" + nameImage, 480,360, argv[2], argv[3], argv[4]);
+		testImage("../images/" + nameImage, 240,180, argv[2], argv[3], argv[4]);
 	}
 	return 0;
 }

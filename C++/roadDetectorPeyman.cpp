@@ -302,7 +302,7 @@ void RoadDetectorPeyman::voter(const Point p, Mat& votes, Mat& dist_table, Point
 	float x = p.x + xStep;
 	float y = p.y - yStep;
 
-	while(y > margin_h && y < h - margin_h && x > margin_w && x < w - margin_w)
+	while(y > 0 && y < h  && x > 0 && x < w  )
 	{
 		/* If not the first time calculating the vanishing point, 
 		   only looks around the old one */
@@ -310,10 +310,12 @@ void RoadDetectorPeyman::voter(const Point p, Mat& votes, Mat& dist_table, Point
 		{
 
 			if(y > old_vp.y - int(perc_look_old *h) && y < old_vp.y + int(perc_look_old *h) && x > old_vp.x - int(perc_look_old *w) && x < old_vp.x + int(perc_look_old *w)){
-				votes.at<float>(y,x) += (sinTheta);
-				distance = distanceP(p, Point(y,x)) / maxDistance;
-				distanceFunction = exp(-(distance * distance) / (2.0 * variance ) );
-				votes.at<float>(y,x) += distanceFunction * sinTheta ;
+				if(x > margin_w && x < w - margin_w && y > 0 && y < h/2){
+					votes.at<float>(y,x) += (sinTheta);
+					distance = distanceP(p, Point(y,x)) / maxDistance;
+					distanceFunction = exp(-(distance * distance) / (2.0 * variance ) );
+					votes.at<float>(y,x) += distanceFunction * sinTheta ;
+				}
 			}
 			else
 				votes.at<float>(y,x) = 0.0;
@@ -321,10 +323,12 @@ void RoadDetectorPeyman::voter(const Point p, Mat& votes, Mat& dist_table, Point
 		/* First time calculating the vanishing point */
 		else
 		{
-			votes.at<float>(y,x) += (sinTheta);
-			distance = distanceP(p, Point(y,x)) / maxDistance;
-			distanceFunction = exp(-(distance * distance) / (2.0 * variance ) );
-			votes.at<float>(y,x) += distanceFunction * sinTheta ;
+			if(x > margin_w && x < w - margin_w && y > 0 && y < h/2){
+				votes.at<float>(y,x) += (sinTheta);
+				distance = distanceP(p, Point(y,x)) / maxDistance;
+				distanceFunction = exp(-(distance * distance) / (2.0 * variance ) );
+				votes.at<float>(y,x) += distanceFunction * sinTheta ;
+			}
 		}
 		x += xStep;
 		y -= yStep;
@@ -423,7 +427,7 @@ void RoadDetectorPeyman::drawOrientation(int grid, int lenLine)
 			int x  = j + int( lenLine * cos(angle));
 			int y = i - int( lenLine * sin(angle));
 			line(outimage, Point(j,i), Point(x,y), Scalar(255,100,40), 2);
-			circle(outimage, Point(j,i), 1, Scalar(255,255,0), -1);
+			//circle(outimage, Point(j,i), 1, Scalar(255,255,0), -1);
 		}
 	}
 }
@@ -456,12 +460,12 @@ float RoadDetectorPeyman::voteRoad(float angle, float thr, Point p)
 		return float(total / totalPoints);
 }
 
-void RoadDetectorPeyman::drawEdge(float angle)
+void RoadDetectorPeyman::drawEdge(float angle, Scalar color)
 {
 	int diag = h + w;
 	int x2 = vp.x + int( diag * cos(angle));
 	int y2 = vp.y - int( diag * sin(angle));
-	line(outimage, Point(x2, y2), vp, Scalar(255,100,40), 2);
+	line(outimage, Point(x2, y2), vp, color, 2);
 }
 
 // Compute all the OCRs
@@ -486,9 +490,9 @@ float RoadDetectorPeyman::computeOCR(vector<float>& voteEdges, Point point, int 
 	{
 		vote = voteRoad(angleLeft, 0.15, point);
 		if(median != 0.0 && vote >= median){
+			//drawEdge(angleLeft* CV_PI / 180.0,Scalar(255,255,40));
 			if(angle_left == 0.0)
 				angle_left = angleLeft* CV_PI / 180.0;
-			//drawEdge(angleLeft* CV_PI / 180.0);
 			if(last_angle == -1)
 				last_angle = (angleLeft * CV_PI) / 180.0;
 		}
@@ -501,7 +505,7 @@ float RoadDetectorPeyman::computeOCR(vector<float>& voteEdges, Point point, int 
 	{
 		vote = voteRoad(angleRight, 0.15, point);
 		if(median != 0.0 && vote >= median){
-			//drawEdge((angleRight + 360 )* CV_PI / 180.0);
+			//drawEdge((angleRight + 360 )* CV_PI / 180.0,Scalar(255,255,40));
 			angle_right = (angleRight + 360 )* CV_PI / 180.0;
 		}
 		voteEdges[i] = vote;
@@ -544,77 +548,14 @@ Point RoadDetectorPeyman::findRoad()
 	vector<float> angles(diag);
 	float sum = 0;
 	float median = 0.0;
+	vector<float> voteNewEdges(50,0);
 	float bestAngle = computeOCR(voteEdges, vp, 200, sum, median);
-	//drawEdge(bestAngle);
-
 	float bestAngleDeg = bestAngle * 180.0 / CV_PI;
+	float m = 0.0;
+	computeOCR(voteNewEdges, vp, 200, sum, median);
 
-	float xStep = cos(bestAngle);
-	float yStep = sin(bestAngle);
-
-	float x = vp.x;
-	float y = vp.y;
-
-
-	int i = 0;
-	// while(y > margin_h && y < h - margin_h && x > margin_w && x < w - margin_w)
-	// {
-	// 	//circle(outimage, Point(x,y), 6, Scalar(255, 0, 0), -1);
-	// 	vector<float> voteNewEdges(50,0);
-	// 	float m = 0.0;
-	// 	float bestAngleEdge = computeOCR(voteNewEdges, Point(x,y),bestAngleDeg, sumOCR[i], m);
-	// 	//float edgeDeg = bestAngleEdge * CV_PI / 180.0;
-	// 	x += xStep;
-	// 	y -= yStep;
-	// 	points[i] = Point(x,y);
-	// 	angles[i] = bestAngleEdge;
-	// 	i += 1;
-	// }
-
-	x = vp.x ;
-	y = vp.y ;
-
-	while(y > vp.y - 0.1*h && y < h - 0.1*h && x > 0.1*w && x < w - 0.1*w)
-	{
-		//circle(outimage, Point(x,y), 6, Scalar(255, 0, 0), -1);
-		float m = 0.0;
-		vector<float> voteNewEdges(50,0);
-		float bestAngleEdge = computeOCR(voteNewEdges, Point(x,y), bestAngleDeg, sumOCR[i], m);
-		// float edgeDeg = bestAngleEdge * CV_PI / 180.0;
-		x -= xStep;
-		y += yStep;
-		points[i] = Point(x,y);
-		angles[i] = bestAngleEdge;
-		i += 1;
-	}
-
-	x = vp.x ;
-	y = vp.y ;
-
-	while(y > vp.y - 0.1*h && y < h - 0.1*h && x > 0.1*w && x < w - 0.1*w)
-	{
-		//circle(outimage, Point(x,y), 6, Scalar(255, 0, 0), -1);
-		float m = 0.0;
-		vector<float> voteNewEdges(50,0);
-		float bestAngleEdge = computeOCR(voteNewEdges, Point(x,y),bestAngleDeg, sumOCR[i], m);
-		// float edgeDeg = bestAngleEdge * CV_PI / 180.0;
-		x -= xStep;
-		y += yStep;
-		points[i] = Point(x,y);
-		angles[i] = bestAngleEdge;
-		i -= 1;
-	}
- 
-	int maxIndex = max_element(sumOCR.begin(), sumOCR.end()) - sumOCR.begin();
-	vp = points[maxIndex];
-
-
-	float second_best = computeOCR(voteEdges, vp, 200, sum, median);
-	drawEdge(angle_left);
-	drawEdge(angle_right);
-
-	circle(outimage, vp, 6, Scalar(255, 0, 0), -1);
-
+	drawEdge(angle_left, Scalar(255,100,40));
+	drawEdge(angle_right, Scalar(255,100,40));
 
 	int x1 = vp.x + int( diag * cos(angle_left));
 	int y1 = vp.y - int( diag * sin(angle_left));
@@ -624,28 +565,6 @@ Point RoadDetectorPeyman::findRoad()
 
 	triang1 = Point(x1,y1);
 	triang2 = Point(x2,y2);
-
-	// int npt[] = { 3 };
-	// Point points_road[1][3];
-	// points_road[0][0] = vp;
-	// points_road[0][1] = Point(x1, y1);
-	// points_road[0][2] = Point(x2,y2);
-
-	// Point p1(0,h);
-	// Point p2(w,h);
-	// get_line_intersection(vp, Point(x1,y1), Point(0,h), Point(w,h), p1);
-	// get_line_intersection(vp, Point(x2,y2), Point(0,h), Point(w,h), p2);
-
-	// //equalizeRegion(p1, Point(p2.x, vp.y));
-
-	// const Point* ppt[1] = { points_road[0] };
-
-	// float alpha = 0.3;
-
-	// Mat overlay;
-	// outimage.copyTo(overlay);
-	// fillPoly(overlay, ppt, npt, 1, Scalar( 255, 255, 0, 100 ), 8);
-	// addWeighted(overlay, alpha, outimage, 1 - alpha, 0, outimage);
 
 	duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
 	cout << "finding road time " << duration << endl;
@@ -685,9 +604,9 @@ float RoadDetectorPeyman::diffPixels(Point p, Point q, Mat img, int t0, int t1, 
 	float dif2 = abs(int(p1(1)) - int(p2(1))) ;
 	float dif3 = abs(int(p1(2)) - int(p2(2))) ;
 	
-	// cout << "DIF 1 " << dif1 << endl;
-	// cout << "DIF 2 " << dif2 << endl;
-	// cout << "DIF 3 " << dif3 << endl;
+	cout << "DIF 1 " << dif1 << endl;
+	cout << "DIF 2 " << dif2 << endl;
+	cout << "DIF 3 " << dif3 << endl;
 
 
 	if(dif1 < t0 && dif2 < t1 && dif3 < t2 )
@@ -760,11 +679,11 @@ void RoadDetectorPeyman::regionGrow(Point seed, int t0, int t1, int t2, Mat img,
 				if(!pointIn(q) || region.at<float>(q) != 0)
 					continue;
 
-				if(isShadow(q, img))
-				{
-					region.at<float>(q) = 1;
-					continue;
-				}
+				// if(isShadow(q, img))
+				// {
+				// 	region.at<float>(q) = 1;
+				// 	continue;
+				// }
 
 				if(pointIn(q) && diffPixels(p, q, img, t0, t1, t2) && region.at<float>(q) == 0 )
 				{
@@ -774,6 +693,8 @@ void RoadDetectorPeyman::regionGrow(Point seed, int t0, int t1, int t2, Mat img,
 			}
  
 		}
+
+		
 
 		if(one_in){
 			for(int i = 0; i < 8; i++)
@@ -796,44 +717,82 @@ void RoadDetectorPeyman::regionGrow(Point seed, int t0, int t1, int t2, Mat img,
 		}
 
 	}
-
 }
 
-float RoadDetectorPeyman::directionVp(Point p)
+Vec3b RoadDetectorPeyman::findMean(vector<Point> R, Mat img)
 {
-	float angle = theta.at<float>(p);
-	int quad = whichQuadrant(angle);
-
-	int step = 1;
-	float xStep = (step * cos(angle));
-	float yStep = (step * sin(angle));
-
-	float x = p.x;
-	float y = p.y;
-
-
-	while(y > 0 && y < h && x > 0 && x < w)
+	int sumY = 0;
+	int sumU = 0;
+	int sumV = 0;
+	int count = 0;
+	for(Point& p: R)
 	{
+		Vec3b color = img.at<Vec3b>(p);
+		sumY += color(0);
+		sumU += color(1);
+		sumV += color(2);
+		count++;
+	}
+	return Vec3b(sumY/count, sumU/count, sumV/count);
+}
 
-		if(int(y) == vp.y)
+bool diffP(Vec3b p1, Vec3b p2, int t0, int t1, int t2)
+{
+	int dif0 = abs(p1(0) - p2(0));
+	int dif1 = abs(p1(1) - p2(1));
+	int dif2 = abs(p1(2) - p2(2));
+	
+	if(dif0 <= t0 && dif1 <= t1 && dif2 <= t2)
+		return 1;
+	else{
+		cout << "Dif 0 " << dif0 << endl;
+		cout << "Dif 1 " << dif1 << endl;
+		cout << "Dif 2 " << dif2 << endl;
+		return 0;
+	}
+}
+
+void RoadDetectorPeyman::regionGrow2(vector<Point> seeds, int t0, int t1, int t2, Mat img, Mat region)
+{
+	Vec3b median = findMean(seeds, img);
+	queue<Point> active;  
+	bool one_in = false;
+	for(Point& seed: seeds)
+	{
+		if (pointIn(seed))
+			active.push(seed);
+	}
+	while (!active.empty()) {
+		Point p = active.front();
+		active.pop();
+		region.at<int>(p) = 1;
+		for(int i =0; i < 8; i++)
+		{	
+			Point q = p + (shift[i]);
+			if(!pointIn(q) || region.at<float>(q) != 0)
+				continue;
+
+			if(diffP(img.at<Vec3b>(q), median, t0, t1, t2) && PointInTriangle(q, triang1, vp, triang2))
+			{
+				one_in = true;
+				break;
+				// region.at<float>(q) = 1;
+				// active.push(q);
+				// Vec3b median = findMean(seeds, img);
+			}
+		}
+		if(one_in)
 		{
-			float distance = abs(vp.x - x);
-			return distance;
-		}
-	  
-		if(yStep < 0){
-			x -= xStep;
-			y += yStep;
-		}
-		else{
-			x += xStep;
-			y -= yStep;
+			for(int i =0; i < 8; i++)
+			{	
+				Point q = p + (shift[i]);
+				region.at<float>(q) = 1;
+				active.push(q);
+				one_in = false;
+			}
+			Vec3b median = findMean(seeds, img);
 		}
 	}
-	
-
-	return w;
-
 }
 
 void RoadDetectorPeyman::findLimits()
@@ -897,16 +856,13 @@ void RoadDetectorPeyman::findThr(Mat img, int& t0, int& t1, int& t2)
 	t1 = int(sum_dif1 / count);
 	t2 = int(sum_dif2 / count);
 
-	cout << "T0 " << t0 << endl;
-	cout << "T1 " << t1 << endl;
-	cout << "T2 " << t2 << endl;
 
-	if(t1 < 6.0)
-		t1 = 6.0;
-	if(t2 < 6.0)
-		t2 = 6.0;
-	if(t0 < 10.0)
-		t0 = 10.0;
+	if(t1 < 8.0)
+		t1 = 8.0;
+	if(t2 < 8.0)
+		t2 = 8.0;
+	if(t0 < 60.0)
+		t0 = 60.0;
 
 }
 
@@ -918,17 +874,18 @@ void RoadDetectorPeyman::roadDetection(float T)
 
 	Point bottom(w/2, h);
 	Point seed1 = (vp + bottom) * 0.5;
+	Point diff = Point(w/2 - vp.x, h - vp.y);
 
 	//directionVp(Point(300,300));
 	Mat imageDetection = image.clone();
 
 
 	// ----- USING HSV ---- // 
-	cvtColor(image, imageHSV, CV_BGR2HSV);
-	split(imageHSV, channelHSV);
-	channelHSV[2] = Mat(imageHSV.rows, imageHSV.cols, CV_8UC1, 280);//Set V
-	merge(channelHSV, 3, imageHSV);
-	cvtColor(imageHSV, imageDetection, CV_HSV2BGR);
+	// cvtColor(image, imageHSV, CV_BGR2HSV);
+	// split(imageHSV, channelHSV);
+	// channelHSV[2] = Mat(imageHSV.rows, imageHSV.cols, CV_8UC1, 280);//Set V
+	// merge(channelHSV, 3, imageHSV);
+	// cvtColor(imageHSV, imageDetection, CV_HSV2BGR);
 
 	// USING YUV
 	Mat imageYUV;
@@ -964,9 +921,41 @@ void RoadDetectorPeyman::roadDetection(float T)
 	findThr(imageDetection, t0, t1, t2);
 
 	Mat region = Mat::zeros(h, w, CV_32F);
-	for(int i = vp.y + h * 0.2; i < (h - h * 0.2); i+=1)
+	// for(int i = vp.y + h * 0.2; i < (h - h * 0.2); i+=1)
+	// {
+	// 	regionGrow(Point(seed1.x, i), t0, t1, t2, imageDetection, region, T);
+	// }
+
+	vector<Point> seeds;
+	// for(int i = vp.y + h * 0.1; i < (h - h * 0.2); i+=5)
+	// {
+	// 	seeds.push_back(Point(seed1.x, i));
+	// 	circle(outimage, Point(seed1.x, i), 2, Scalar(255, 0, 255), -1);
+	// }
+
+	//line(outimage, vp, Point(w/2, h), Scalar(0, 0, 255), 1);
+
+	int x = vp.x, y = vp.y + 0.1 * h;
+	while(x < w && y < h - 0.15 * h)
 	{
-		regionGrow(Point(seed1.x, i), t0, t1, t2, imageDetection, region, T);
+		x += diff.x * 0.1;
+		y += diff.y * 0.1;
+		//circle(outimage, Point(x, y), 3, Scalar(255, 0, 0), -1);
+		seeds.push_back(Point(x, y));
+	}
+
+
+	regionGrow2(seeds, t0, t1, t2, imageDetection, region);
+
+	for(int j = 0; j < w; j++)
+	{
+		for(int i = 0; i < h; i++)
+		{
+			if(region.at<int>(Point(j, i)) == 1)
+			{
+				outimage.at<Vec3b>(Point(j, i)) = Vec3b(100,100,10); 
+			}
+		}
 	}
 
 	//testShadow(imageDetection);

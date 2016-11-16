@@ -67,11 +67,14 @@ private:
 
 	void equalizeRegion(Point p1, Point p2);
 
-	void drawEdge(float angle);
+	void drawEdge(float angle, Scalar color);
 
 	bool isShadow(Point p, Mat img);
 
 	void testShadow(Mat img);
+
+	Vec3b findMean(vector<Point> R, Mat img);
+	void regionGrow2(vector<Point> seeds, int t0, int t1, int t2, Mat img, Mat region);
 
 	std::string filename;
 	int numOrientations;
