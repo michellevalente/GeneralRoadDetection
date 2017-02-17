@@ -78,12 +78,13 @@ void RoadDetectorPeyman::applyFilter(std::string dfilename, int dw, int dh)
 	if(middle_x + 180 > w)
 		margin_w = 0;
 	else
-		margin_w = w - (middle_x + 240);
-
+		//margin_w = w - (middle_x + 240);
+		margin_w = 0.4*w;
 	vp = Point(w/2 , h/2);
 
 	/* Get image, resize and change to gray scale */
 	image = imread(filename);
+
 	resize(image, image, Size(w, h));
 	outimage = image.clone();
 	cvtColor(image, imageGray, CV_BGR2GRAY);
@@ -110,7 +111,7 @@ void RoadDetectorPeyman::applyFilter(std::string dfilename, int dw, int dh)
 	}
 
 	double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-	cout << "gabor filter time " << duration << endl;
+	//cout << "gabor filter time " << duration << endl;
 }
 
 void RoadDetectorPeyman::applyFilter(Mat file, int dw, int dh)
@@ -165,7 +166,7 @@ void RoadDetectorPeyman::applyFilter(Mat file, int dw, int dh)
 	}
 
 	double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-	cout << "gabor filter time " << duration << endl;
+	//cout << "gabor filter time " << duration << endl;
 }
 
 /* Calculates the dominant orientation for each pixel */
@@ -364,13 +365,13 @@ Point RoadDetectorPeyman::findVanishingPoint(Point old_vp)
 	}
 
 	duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-	cout << "voter time " << duration << endl;
+	//cout << "voter time " << duration << endl;
 
 	double min_val, max_val;
 	Point min_p, max_p;
 	minMaxLoc(votes, &min_val, &max_val, &min_p, &max_p);
 
-	circle(outimage, max_p, 6, Scalar(255, 0, 255), -1);
+	//circle(outimage, max_p, 6, Scalar(255, 0, 255), -1);
 	vp = max_p;
 
 	return max_p;
@@ -554,8 +555,8 @@ Point RoadDetectorPeyman::findRoad()
 	float m = 0.0;
 	computeOCR(voteNewEdges, vp, 200, sum, median);
 
-	drawEdge(angle_left, Scalar(255,100,40));
-	drawEdge(angle_right, Scalar(255,100,40));
+	//drawEdge(angle_left, Scalar(255,100,40));
+	//drawEdge(angle_right, Scalar(255,100,40));
 
 	int x1 = vp.x + int( diag * cos(angle_left));
 	int y1 = vp.y - int( diag * sin(angle_left));
@@ -567,7 +568,7 @@ Point RoadDetectorPeyman::findRoad()
 	triang2 = Point(x2,y2);
 
 	duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-	cout << "finding road time " << duration << endl;
+	//cout << "finding road time " << duration << endl;
 
 	return vp;
 }
@@ -603,14 +604,15 @@ float RoadDetectorPeyman::diffPixels(Point p, Point q, Mat img, int t0, int t1, 
 	float dif1 = abs(int(p1(0)) - int(p2(0))) ;
 	float dif2 = abs(int(p1(1)) - int(p2(1))) ;
 	float dif3 = abs(int(p1(2)) - int(p2(2))) ;
-	
-	cout << "DIF 1 " << dif1 << endl;
-	cout << "DIF 2 " << dif2 << endl;
-	cout << "DIF 3 " << dif3 << endl;
 
+	cout << "dif1 " << dif1 << endl;
+	cout << "dif2 " << dif2 << endl;
+	cout << "dif3 " << dif3 << endl;
 
-	if(dif1 < t0 && dif2 < t1 && dif3 < t2 )
+	if(dif1 < t0 && dif2 < t1 && dif3 < t2 ){
+		cout << "T" << endl;
 		return 1;
+	}
 	else 
 		return 0;
 } 
@@ -676,14 +678,15 @@ void RoadDetectorPeyman::regionGrow(Point seed, int t0, int t1, int t2, Mat img,
 			for(int j = 1; j < 3; j++)
 			{
 				Point q = p + (shift[i] * j);
-				if(!pointIn(q) || region.at<float>(q) != 0)
+				if(!pointIn(q) || region.at<float>(q) != 0){
 					continue;
+				}
 
-				// if(isShadow(q, img))
-				// {
-				// 	region.at<float>(q) = 1;
-				// 	continue;
-				// }
+				if(isShadow(q, img))
+				{
+					region.at<float>(q) = 1;
+					continue;
+				}
 
 				if(pointIn(q) && diffPixels(p, q, img, t0, t1, t2) && region.at<float>(q) == 0 )
 				{
@@ -741,13 +744,19 @@ bool diffP(Vec3b p1, Vec3b p2, int t0, int t1, int t2)
 	int dif0 = abs(p1(0) - p2(0));
 	int dif1 = abs(p1(1) - p2(1));
 	int dif2 = abs(p1(2) - p2(2));
+
+	// cout << "dif1 " << dif0 << endl;
+	// cout << "dif2 " << dif1 << endl;
+	// cout << "dif3 " << dif2 << endl;
 	
-	if(dif0 <= t0 && dif1 <= t1 && dif2 <= t2)
+	// 	cout << "t0 " << t0 << endl;
+	// cout << "t1 " << t1 << endl;
+	// cout << "t2 " << t2 << endl;
+
+	if(dif0 <= t0 && dif1 <= t1 && dif2 <= t2){
 		return 1;
+	}
 	else{
-		cout << "Dif 0 " << dif0 << endl;
-		cout << "Dif 1 " << dif1 << endl;
-		cout << "Dif 2 " << dif2 << endl;
 		return 0;
 	}
 }
@@ -771,7 +780,6 @@ void RoadDetectorPeyman::regionGrow2(vector<Point> seeds, int t0, int t1, int t2
 			Point q = p + (shift[i]);
 			if(!pointIn(q) || region.at<float>(q) != 0)
 				continue;
-
 			if(diffP(img.at<Vec3b>(q), median, t0, t1, t2) && PointInTriangle(q, triang1, vp, triang2))
 			{
 				one_in = true;
@@ -857,10 +865,10 @@ void RoadDetectorPeyman::findThr(Mat img, int& t0, int& t1, int& t2)
 	t2 = int(sum_dif2 / count);
 
 
-	if(t1 < 8.0)
-		t1 = 8.0;
-	if(t2 < 8.0)
-		t2 = 8.0;
+	if(t1 < 10.0)
+		t1 = 10.0;
+	if(t2 < 10.0)
+		t2 = 10.0;
 	if(t0 < 60.0)
 		t0 = 60.0;
 
@@ -913,7 +921,7 @@ void RoadDetectorPeyman::roadDetection(float T)
 	//medianBlur( imageGray, imageGray, 5 );
 	//medianBlur( image, image, 5 );
 
-	imshow("detection",imageDetection);
+	//imshow("detection",imageDetection);
 	// imshow("original",image);
 	//waitKey(0);
 
@@ -935,8 +943,8 @@ void RoadDetectorPeyman::roadDetection(float T)
 
 	//line(outimage, vp, Point(w/2, h), Scalar(0, 0, 255), 1);
 
-	int x = vp.x, y = vp.y + 0.1 * h;
-	while(x < w && y < h - 0.15 * h)
+	int x = vp.x, y = vp.y;
+	while(x < w && y < h - 0.25 * h)
 	{
 		x += diff.x * 0.1;
 		y += diff.y * 0.1;
@@ -962,7 +970,7 @@ void RoadDetectorPeyman::roadDetection(float T)
 
 
 	double duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-	cout << "road detection time " << duration << endl;
+	//cout << "road detection time " << duration << endl;
 
 
 }

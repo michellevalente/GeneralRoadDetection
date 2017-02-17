@@ -73,9 +73,12 @@ void GaborKernel::applyKernel(Mat &imgSrc, Mat &imgDst)
 
 	filter2D(mat, rmat, CV_32F, Real, Point((Width-1)/2, (Width-1)/2));
     filter2D(mat, imat, CV_32F, Imag, Point((Width-1)/2, (Width-1)/2));
+
     pow(rmat, 2, rmat);
     pow(imat, 2, imat);
+
     sqrt(rmat + imat, summat);
     summat.copyTo(imgDst);
+    
 }
 

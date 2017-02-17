@@ -698,7 +698,7 @@ void RoadDetector::findVanishingPointMistry()
     int const max_lowThreshold = 100;
     int ratio = 3;
     int kernel_size = 3;
-    char* window_name = "Edge Map";
+    string window_name = "Edge Map";
 
     /// Reduce noise with a kernel 3x3
     blur( imageGray, detected_edges, Size(3,3) );
